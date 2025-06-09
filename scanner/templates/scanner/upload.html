@@ -1,0 +1,114 @@
+{% extends 'scanner/base.html' %}
+{% block title %}Upload MSG{% endblock %}
+{% block content %}
+<h1 class="mb-3">Upload MSG file</h1>
+<form method="post" enctype="multipart/form-data" class="mb-4">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary" type="submit">Check</button>
+</form>
+{% if cached %}
+<div class="alert alert-info">Result loaded from cache.</div>
+{% endif %}
+{% if ip_results %}
+<div class="mb-4">
+    <h2>IP Results</h2>
+    <ul class="list-group">
+    {% for ip, lists in ip_results.items %}
+        <li class="list-group-item">{{ ip }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if domain_results %}
+<div class="mb-4">
+    <h2>Domain Results</h2>
+    <ul class="list-group">
+    {% for domain, lists in domain_results.items %}
+        <li class="list-group-item">{{ domain }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if spf_result is not None %}
+<div class="mb-4">
+    <h2>SPF Result</h2>
+    <p>{{ spf_result }}</p>
+</div>
+{% endif %}
+{% if dkim_result is not none %}
+<div class="mb-4">
+    <h2>DKIM Result</h2>
+    <p>{% if dkim_result %}Valid{% else %}Invalid{% endif %}</p>
+</div>
+{% endif %}
+{% if dmarc_result is not none %}
+<div class="mb-4">
+    <h2>DMARC Result</h2>
+    <p>{% if dmarc_result %}Valid{% else %}Invalid{% endif %}</p>
+</div>
+{% endif %}
+{% if keyword_hits %}
+<div class="mb-4">
+    <h2>Keyword Hits</h2>
+    <ul class="list-group">
+    {% for k in keyword_hits %}
+        <li class="list-group-item">{{ k }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if word_freqs %}
+<div class="mb-4">
+    <h2>Word Frequencies</h2>
+    <ul class="list-group">
+    {% for w, c in word_freqs.items %}
+        <li class="list-group-item">{{ w }}: {{ c }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if links %}
+<div class="mb-4">
+    <h2>Links</h2>
+    <ul class="list-group">
+    {% for l in links %}
+        <li class="list-group-item">{{ l }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if suspicious_attachments %}
+<div class="mb-4">
+    <h2>Suspicious Attachments</h2>
+    <ul class="list-group">
+    {% for a in suspicious_attachments %}
+        <li class="list-group-item">{{ a }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if ml_spam is not none %}
+<div class="mb-4">
+    <h2>ML Classification</h2>
+    <p>{% if ml_spam %}<span class="badge bg-danger">Spam</span>{% else %}<span class="badge bg-success">Ham</span>{% endif %}</p>
+</div>
+{% endif %}
+{% if header_info %}
+<div class="mb-4">
+    <h2>Header Info</h2>
+    <ul class="list-group">
+        <li class="list-group-item">From: {{ header_info.from }}</li>
+        <li class="list-group-item">Reply-To: {{ header_info.reply_to }}</li>
+        <li class="list-group-item">Subject: {{ header_info.subject }}</li>
+        <li class="list-group-item">Received:
+            <ul>
+            {% for r in header_info.received %}
+                <li>{{ r }}</li>
+            {% endfor %}
+            </ul>
+        </li>
+    </ul>
+</div>
+{% endif %}
+{% endblock %}
