@@ -35,6 +35,11 @@ def upload(request: HttpRequest) -> HttpResponse:
                 spf_result = utils.check_spf(next(iter(ips)), header_info['from'])
                 dmarc_result = utils.check_dmarc(sender_domain)
 
+            keyword_hits = utils.find_keywords(body)
+            word_freqs = utils.word_frequencies(body)
+            links = utils.extract_urls(body)
+            suspicious_atts = utils.suspicious_attachments(message)
+
             context.update({
                 'ip_results': ip_results,
                 'domain_results': domain_results,
@@ -42,6 +47,10 @@ def upload(request: HttpRequest) -> HttpResponse:
                 'spf_result': spf_result,
                 'dkim_result': dkim_result,
                 'dmarc_result': dmarc_result,
+                'keyword_hits': keyword_hits,
+                'word_freqs': word_freqs,
+                'links': links,
+                'suspicious_attachments': suspicious_atts,
                 'form': form,
             })
     return render(request, 'scanner/upload.html', context)

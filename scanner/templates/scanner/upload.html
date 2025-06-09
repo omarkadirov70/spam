@@ -44,6 +44,42 @@
         <p>{% if dmarc_result %}Valid{% else %}Invalid{% endif %}</p>
     {% endif %}
 
+    {% if keyword_hits %}
+        <h2>Keyword Hits</h2>
+        <ul>
+            {% for k in keyword_hits %}
+                <li>{{ k }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if word_freqs %}
+        <h2>Word Frequencies</h2>
+        <ul>
+            {% for w, c in word_freqs.items %}
+                <li>{{ w }}: {{ c }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if links %}
+        <h2>Links</h2>
+        <ul>
+            {% for l in links %}
+                <li>{{ l }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if suspicious_attachments %}
+        <h2>Suspicious Attachments</h2>
+        <ul>
+            {% for a in suspicious_attachments %}
+                <li>{{ a }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
     {% if header_info %}
         <h2>Header Info</h2>
         <ul>
