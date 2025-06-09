@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload MSG</title>
+</head>
+<body>
+    <h1>Upload MSG file</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Check</button>
+    </form>
+
+    {% if ip_results %}
+        <h2>IP Results</h2>
+        <ul>
+            {% for ip, lists in ip_results.items %}
+                <li>{{ ip }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if domain_results %}
+        <h2>Domain Results</h2>
+        <ul>
+            {% for domain, lists in domain_results.items %}
+                <li>{{ domain }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html>
