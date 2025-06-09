@@ -13,7 +13,8 @@ def upload(request: HttpRequest) -> HttpResponse:
             msg_file = form.cleaned_data['msg_file']
             message = extract_msg.Message(msg_file)
             body = message.body or ''
-            headers = message.header or ''
+            header_obj = message.header
+            headers = header_obj.as_string() if header_obj else ''
             ips = set(utils.extract_ips(headers))
             domains = set(utils.extract_domains(body))
             ip_results = {ip: utils.query_dnsbl(ip) for ip in ips}
