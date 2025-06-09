@@ -38,4 +38,3 @@ class UtilsTests(TestCase):
         utils.reset_model()
         self.assertTrue(utils.predict_spam('Cheap viagra here'))
         self.assertFalse(utils.predict_spam('Lunch tomorrow'))
-
