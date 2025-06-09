@@ -24,4 +24,12 @@ class UtilsTests(TestCase):
         self.assertEqual(info['from'], 'Alice <alice@example.com>')
         self.assertEqual(info['reply_to'], 'reply@example.com')
         self.assertEqual(info['subject'], 'Test')
+    def test_content_filters(self):
+        text = 'Get FREE money now! Viagra available.'
+        keywords = utils.find_keywords(text)
+        self.assertIn('free money', keywords)
+        self.assertIn('viagra', keywords)
+        freqs = utils.word_frequencies(text, ['free'])
+        self.assertEqual(freqs['free'], 1)
+
         self.assertEqual(info['received'], ['by mail.example.com'])

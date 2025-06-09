@@ -3,6 +3,11 @@ import dns.resolver
 from email.message import Message
 import spf
 import dkim
+try:
+    import magic
+except Exception:
+    magic = None
+from bs4 import BeautifulSoup
 
 DNSBL_LISTS = [
     'zen.spamhaus.org',
@@ -16,6 +21,20 @@ URIBL_LISTS = [
 
 ip_regex = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
 url_regex = re.compile(r'https?://([^/\s]+)')
+
+# Spam content patterns
+KEYWORDS = [
+    'free money',
+    'viagra',
+    'lottery',
+    'prince',
+]
+KEYWORD_REGEXES = [re.compile(k, re.IGNORECASE) for k in KEYWORDS]
+
+WORD_FREQ_TERMS = ['free', 'win', 'click', 'offer']
+
+SUSPICIOUS_EXT = {'.exe', '.bat', '.cmd', '.scr', '.js', '.vbs', '.jar', '.zip', '.rar'}
+magic_mime = magic.Magic(mime=True) if magic else None
 
 def extract_ips(text):
     return ip_regex.findall(text)
@@ -86,4 +105,34 @@ def check_dmarc(domain: str) -> bool:
                 return True
     except Exception:
         pass
+
+
+def find_keywords(text: str) -> list[str]:
+    """Return spam keywords found in text."""
+    hits = []
+    for regex in KEYWORD_REGEXES:
+        if regex.search(text):
+            hits.append(regex.pattern)
+    return hits
+
+
+def word_frequencies(text: str, words: list[str] | None = None) -> dict:
+    words = words or WORD_FREQ_TERMS
+    tokens = re.findall(r'\b\w+\b', text.lower())
+    return {w.lower(): tokens.count(w.lower()) for w in words}
+
+
+def extract_urls(text: str) -> list[str]:
+    return re.findall(r'https?://[^\s>]+', text)
+
+
+def suspicious_attachments(message: Message) -> list[str]:
+    suspects = []
+    for att in getattr(message, 'attachments', []):
+        name = getattr(att, 'longFilename', None) or getattr(att, 'shortFilename', None) or ''
+        data = getattr(att, 'data', b'')
+        mime = magic_mime.from_buffer(data) if (magic_mime and data) else ''
+        if any(name.lower().endswith(ext) for ext in SUSPICIOUS_EXT) or ('executable' in mime):
+            suspects.append(name or '(unnamed)')
+    return suspects
     return False
