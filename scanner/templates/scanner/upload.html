@@ -28,5 +28,35 @@
             {% endfor %}
         </ul>
     {% endif %}
+
+    {% if spf_result is not None %}
+        <h2>SPF Result</h2>
+        <p>{{ spf_result }}</p>
+    {% endif %}
+
+    {% if dkim_result is not none %}
+        <h2>DKIM Result</h2>
+        <p>{% if dkim_result %}Valid{% else %}Invalid{% endif %}</p>
+    {% endif %}
+
+    {% if dmarc_result is not none %}
+        <h2>DMARC Result</h2>
+        <p>{% if dmarc_result %}Valid{% else %}Invalid{% endif %}</p>
+    {% endif %}
+
+    {% if header_info %}
+        <h2>Header Info</h2>
+        <ul>
+            <li>From: {{ header_info.from }}</li>
+            <li>Reply-To: {{ header_info.reply_to }}</li>
+            <li>Subject: {{ header_info.subject }}</li>
+            <li>Received:</li>
+            <ul>
+                {% for r in header_info.received %}
+                    <li>{{ r }}</li>
+                {% endfor %}
+            </ul>
+        </ul>
+    {% endif %}
 </body>
 </html>
