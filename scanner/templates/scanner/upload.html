@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload MSG</title>
+</head>
+<body>
+    <h1>Upload MSG file</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Check</button>
+    </form>
+
+    {% if ip_results %}
+        <h2>IP Results</h2>
+        <ul>
+            {% for ip, lists in ip_results.items %}
+                <li>{{ ip }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if domain_results %}
+        <h2>Domain Results</h2>
+        <ul>
+            {% for domain, lists in domain_results.items %}
+                <li>{{ domain }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if spf_result is not None %}
+        <h2>SPF Result</h2>
+        <p>{{ spf_result }}</p>
+    {% endif %}
+
+    {% if dkim_result is not none %}
+        <h2>DKIM Result</h2>
+        <p>{% if dkim_result %}Valid{% else %}Invalid{% endif %}</p>
+    {% endif %}
+
+    {% if dmarc_result is not none %}
+        <h2>DMARC Result</h2>
+        <p>{% if dmarc_result %}Valid{% else %}Invalid{% endif %}</p>
+    {% endif %}
+
+    {% if keyword_hits %}
+        <h2>Keyword Hits</h2>
+        <ul>
+            {% for k in keyword_hits %}
+                <li>{{ k }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if word_freqs %}
+        <h2>Word Frequencies</h2>
+        <ul>
+            {% for w, c in word_freqs.items %}
+                <li>{{ w }}: {{ c }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if links %}
+        <h2>Links</h2>
+        <ul>
+            {% for l in links %}
+                <li>{{ l }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if suspicious_attachments %}
+        <h2>Suspicious Attachments</h2>
+        <ul>
+            {% for a in suspicious_attachments %}
+                <li>{{ a }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if ml_spam is not none %}
+        <h2>ML Classification</h2>
+        <p>{% if ml_spam %}Spam{% else %}Ham{% endif %}</p>
+    {% endif %}
+
+    {% if header_info %}
+        <h2>Header Info</h2>
+        <ul>
+            <li>From: {{ header_info.from }}</li>
+            <li>Reply-To: {{ header_info.reply_to }}</li>
+            <li>Subject: {{ header_info.subject }}</li>
+            <li>Received:</li>
+            <ul>
+                {% for r in header_info.received %}
+                    <li>{{ r }}</li>
+                {% endfor %}
+            </ul>
+        </ul>
+    {% endif %}
+</body>
+</html>
