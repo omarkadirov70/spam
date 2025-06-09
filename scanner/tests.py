@@ -25,4 +25,3 @@ class UtilsTests(TestCase):
         self.assertEqual(info['reply_to'], 'reply@example.com')
         self.assertEqual(info['subject'], 'Test')
         self.assertEqual(info['received'], ['by mail.example.com'])
-
