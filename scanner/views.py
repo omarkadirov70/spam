@@ -39,6 +39,7 @@ def upload(request: HttpRequest) -> HttpResponse:
             word_freqs = utils.word_frequencies(body)
             links = utils.extract_urls(body)
             suspicious_atts = utils.suspicious_attachments(message)
+            ml_spam = utils.predict_spam(body)
 
             context.update({
                 'ip_results': ip_results,
@@ -51,6 +52,7 @@ def upload(request: HttpRequest) -> HttpResponse:
                 'word_freqs': word_freqs,
                 'links': links,
                 'suspicious_attachments': suspicious_atts,
+                'ml_spam': ml_spam,
                 'form': form,
             })
     return render(request, 'scanner/upload.html', context)

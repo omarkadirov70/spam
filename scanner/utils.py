@@ -136,3 +136,45 @@ def suspicious_attachments(message: Message) -> list[str]:
         if any(name.lower().endswith(ext) for ext in SUSPICIOUS_EXT) or ('executable' in mime):
             suspects.append(name or '(unnamed)')
     return suspects
+
+
+# === Machine learning spam classifier (Level 4) ===
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+
+_vectorizer: CountVectorizer | None = None
+_classifier: MultinomialNB | None = None
+
+SAMPLE_DATA = [
+    ("Win money now", 1),
+    ("Cheap viagra available", 1),
+    ("Meeting schedule attached", 0),
+    ("Let's have lunch tomorrow", 0),
+]
+
+
+def train_default_model() -> None:
+    """Train the Naive Bayes classifier on the built-in sample dataset."""
+    global _vectorizer, _classifier
+    texts = [t for t, _ in SAMPLE_DATA]
+    labels = [l for _, l in SAMPLE_DATA]
+    _vectorizer = CountVectorizer()
+    X = _vectorizer.fit_transform(texts)
+    _classifier = MultinomialNB()
+    _classifier.fit(X, labels)
+
+
+def predict_spam(text: str) -> bool:
+    """Return True if text is predicted to be spam using a Naive Bayes model."""
+    global _vectorizer, _classifier
+    if _classifier is None:
+        train_default_model()
+    X = _vectorizer.transform([text])
+    return bool(_classifier.predict(X)[0])
+
+
+def reset_model() -> None:
+    """Reset the trained model (for tests)."""
+    global _vectorizer, _classifier
+    _vectorizer = None
+    _classifier = None

@@ -80,6 +80,11 @@
         </ul>
     {% endif %}
 
+    {% if ml_spam is not none %}
+        <h2>ML Classification</h2>
+        <p>{% if ml_spam %}Spam{% else %}Ham{% endif %}</p>
+    {% endif %}
+
     {% if header_info %}
         <h2>Header Info</h2>
         <ul>
