@@ -33,4 +33,3 @@ class UtilsTests(TestCase):
         self.assertIn('viagra', keywords)
         freqs = utils.word_frequencies(text, ['free'])
         self.assertEqual(freqs['free'], 1)
-
