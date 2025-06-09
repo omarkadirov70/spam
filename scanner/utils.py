@@ -1,6 +1,8 @@
 import re
-import socket
 import dns.resolver
+from email.message import Message
+import spf
+import dkim
 
 DNSBL_LISTS = [
     'zen.spamhaus.org',
@@ -46,3 +48,42 @@ def query_uribl(domain):
         except Exception:
             pass
     return results
+
+
+def parse_headers(msg: Message) -> dict:
+    """Return key email headers for analysis."""
+    return {
+        'from': msg.get('From', ''),
+        'reply_to': msg.get('Reply-To', ''),
+        'subject': msg.get('Subject', ''),
+        'received': msg.get_all('Received', []),
+    }
+
+
+def check_spf(ip: str, sender: str, helo: str | None = None) -> str:
+    """Return SPF result string."""
+    helo = helo or sender.split('@')[-1]
+    try:
+        result, *_ = spf.check2(i=ip, s=sender, h=helo)
+    except Exception as exc:
+        result = f'error: {exc}'
+    return result
+
+
+def check_dkim(message_bytes: bytes) -> bool:
+    try:
+        return dkim.verify(message_bytes)
+    except Exception:
+        return False
+
+
+def check_dmarc(domain: str) -> bool:
+    try:
+        records = dns.resolver.resolve(f'_dmarc.{domain}', 'TXT')
+        for r in records:
+            txt = b''.join(r.strings)
+            if b'v=DMARC1' in txt:
+                return True
+    except Exception:
+        pass
+    return False
