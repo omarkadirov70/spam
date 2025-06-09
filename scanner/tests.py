@@ -38,3 +38,12 @@ class UtilsTests(TestCase):
         utils.reset_model()
         self.assertTrue(utils.predict_spam('Cheap viagra here'))
         self.assertFalse(utils.predict_spam('Lunch tomorrow'))
+
+
+class CacheTests(TestCase):
+    def test_cache_roundtrip(self):
+        data = b'Test message'
+        h, _ = utils.cache_lookup(data)
+        utils.cache_store(h, {'result': 'ok'})
+        _, cached = utils.cache_lookup(data)
+        self.assertEqual(cached['result'], 'ok')

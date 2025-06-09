@@ -178,3 +178,21 @@ def reset_model() -> None:
     global _vectorizer, _classifier
     _vectorizer = None
     _classifier = None
+
+# === Caching and logging (Level 5) ===
+from . import cache
+from .logger import logger
+
+
+def cache_lookup(message_bytes: bytes):
+    """Return (hash, cached result) if present."""
+    h = cache.message_hash(message_bytes)
+    return h, cache.get(h)
+
+
+def cache_store(h: str, result: dict) -> None:
+    cache.set(h, result)
+
+
+def log_result(h: str, result: dict) -> None:
+    logger.info("hash=%s ml_spam=%s", h, result.get('ml_spam'))

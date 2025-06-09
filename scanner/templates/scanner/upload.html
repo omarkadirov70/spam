@@ -11,6 +11,10 @@
         <button type="submit">Check</button>
     </form>
 
+    {% if cached %}
+        <p><em>Result loaded from cache.</em></p>
+    {% endif %}
+
     {% if ip_results %}
         <h2>IP Results</h2>
         <ul>
