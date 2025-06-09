@@ -10,6 +10,11 @@ class UploadViewTests(TestCase):
         response = client.get(reverse('upload'))
         self.assertEqual(response.status_code, 200)
 
+    def test_stats_page_loads(self):
+        client = Client()
+        response = client.get(reverse('stats'))
+        self.assertEqual(response.status_code, 200)
+
 
 class UtilsTests(TestCase):
     def test_parse_headers(self):

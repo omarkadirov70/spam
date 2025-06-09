@@ -6,6 +6,11 @@ import extract_msg
 from email import message_from_string
 
 
+def stats(request: HttpRequest) -> HttpResponse:
+    data = utils.scan_statistics()
+    return render(request, 'scanner/stats.html', data)
+
+
 def upload(request: HttpRequest) -> HttpResponse:
     context = {'form': UploadMsgForm()}
     if request.method == 'POST':

@@ -196,3 +196,29 @@ def cache_store(h: str, result: dict) -> None:
 
 def log_result(h: str, result: dict) -> None:
     logger.info("hash=%s ml_spam=%s", h, result.get('ml_spam'))
+
+
+def scan_statistics() -> dict:
+    """Aggregate statistics from all cached scan results."""
+    results = cache.all_results()
+    total = len(results)
+    ml_spam = sum(1 for r in results if r.get('ml_spam'))
+    ip_hits = sum(
+        1
+        for r in results
+        if any(r.get('ip_results', {}).get(ip) for ip in r.get('ip_results', {}))
+    )
+    domain_hits = sum(
+        1
+        for r in results
+        if any(
+            r.get('domain_results', {}).get(d) for d in r.get('domain_results', {})
+        )
+    )
+    return {
+        'total': total,
+        'ml_spam': ml_spam,
+        'ml_ham': total - ml_spam,
+        'ip_hits': ip_hits,
+        'domain_hits': domain_hits,
+    }

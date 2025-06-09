@@ -36,3 +36,12 @@ def set(hash_val: str, result: dict):
     )
     conn.commit()
     conn.close()
+
+
+def all_results() -> list[dict]:
+    """Return all cached scan results as a list of dicts."""
+    conn = _get_connection()
+    cur = conn.execute('SELECT result FROM scans')
+    rows = [json.loads(row[0]) for row in cur.fetchall()]
+    conn.close()
+    return rows
