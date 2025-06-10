@@ -1,4 +1,5 @@
 from django.test import TestCase, Client
+from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 import email
@@ -48,9 +49,16 @@ class UtilsTests(TestCase):
         self.assertEqual(freqs['free'], 1)
 
     def test_ml_prediction(self):
-        utils.reset_model()
-        self.assertTrue(utils.predict_spam('Cheap viagra here'))
-        self.assertFalse(utils.predict_spam('Lunch tomorrow'))
+        with patch('scanner.utils.fetch_training_data') as fake:
+            fake.return_value = [
+                ('buy cheap meds', 1),
+                ('cheap viagra here', 1),
+                ('let us meet', 0),
+                ('lunch tomorrow', 0),
+            ]
+            utils.reset_model()
+            self.assertTrue(utils.predict_spam('Cheap viagra here'))
+            self.assertFalse(utils.predict_spam('Lunch tomorrow'))
 
 
 class CacheTests(TestCase):

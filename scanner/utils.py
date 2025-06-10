@@ -161,9 +161,17 @@ def suspicious_attachments(message: Message) -> list[str]:
 # === Machine learning spam classifier (Level 4) ===
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
+from urllib.request import urlopen
+import csv
+import io
 
 _vectorizer: CountVectorizer | None = None
 _classifier: MultinomialNB | None = None
+_training_data: list[tuple[str, int]] | None = None
+
+TRAINING_DATA_URL = (
+    "https://raw.githubusercontent.com/justmarkham/pycon-2016-tutorial/master/data/sms.tsv"
+)
 
 SAMPLE_DATA = [
     ("Win money now", 1),
@@ -173,11 +181,33 @@ SAMPLE_DATA = [
 ]
 
 
+def fetch_training_data() -> list[tuple[str, int]]:
+    """Download the SMS Spam Collection dataset and return pairs of text and label."""
+    data: list[tuple[str, int]] = []
+    try:
+        with urlopen(TRAINING_DATA_URL) as resp:
+            wrapper = io.TextIOWrapper(resp, encoding="utf-8")
+            reader = csv.reader(wrapper, delimiter="\t")
+            for row in reader:
+                if len(row) != 2:
+                    continue
+                label, text = row
+                label = label.strip().lower()
+                if label not in {"ham", "spam"}:
+                    continue
+                data.append((text, 1 if label == "spam" else 0))
+    except Exception:
+        data = SAMPLE_DATA
+    return data
+
+
 def train_default_model() -> None:
-    """Train the Naive Bayes classifier on the built-in sample dataset."""
-    global _vectorizer, _classifier
-    texts = [t for t, _ in SAMPLE_DATA]
-    labels = [l for _, l in SAMPLE_DATA]
+    """Train the Naive Bayes classifier using data from the internet."""
+    global _vectorizer, _classifier, _training_data
+    if _training_data is None:
+        _training_data = fetch_training_data()
+    texts = [t for t, _ in _training_data]
+    labels = [l for _, l in _training_data]
     _vectorizer = CountVectorizer()
     X = _vectorizer.fit_transform(texts)
     _classifier = MultinomialNB()
@@ -195,9 +225,10 @@ def predict_spam(text: str) -> bool:
 
 def reset_model() -> None:
     """Reset the trained model (for tests)."""
-    global _vectorizer, _classifier
+    global _vectorizer, _classifier, _training_data
     _vectorizer = None
     _classifier = None
+    _training_data = None
 
 # === Caching and logging (Level 5) ===
 from . import cache
