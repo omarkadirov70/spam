@@ -1,4 +1,5 @@
 from django.test import TestCase, Client
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 import email
 from . import utils
@@ -13,6 +14,13 @@ class UploadViewTests(TestCase):
     def test_stats_page_loads(self):
         client = Client()
         response = client.get(reverse('stats'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_upload_eml(self):
+        client = Client()
+        eml = b"From: a@example.com\nTo: b@example.com\nSubject: hi\n\nhello"
+        file = SimpleUploadedFile('test.eml', eml, content_type='application/octet-stream')
+        response = client.post(reverse('upload'), {'msg_file': file})
         self.assertEqual(response.status_code, 200)
 
 

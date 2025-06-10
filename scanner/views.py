@@ -3,7 +3,7 @@ from django.http import HttpRequest, HttpResponse
 from .forms import UploadMsgForm
 from . import utils
 import extract_msg
-from email import message_from_string
+from email import message_from_bytes, message_from_string
 
 
 def stats(request: HttpRequest) -> HttpResponse:
@@ -17,19 +17,46 @@ def upload(request: HttpRequest) -> HttpResponse:
         form = UploadMsgForm(request.POST, request.FILES)
         if form.is_valid():
             msg_file = form.cleaned_data['msg_file']
-            message = extract_msg.Message(msg_file)
-            body = message.body or ''
-            header_obj = message.header
-            headers = header_obj.as_string() if header_obj else ''
-            msg_bytes = (headers + "\n\n" + body).encode()
+            name = msg_file.name.lower()
+            if name.endswith('.msg'):
+                message = extract_msg.Message(msg_file)
+                body = message.body or ''
+                header_obj = message.header
+                headers = header_obj.as_string() if header_obj else ''
+                msg_bytes = (headers + "\n\n" + body).encode()
+                email_msg = message_from_string(headers + "\n\n" + body)
+            else:
+                data = msg_file.read()
+                message = message_from_bytes(data)
+                if message.is_multipart():
+                    parts = []
+                    for part in message.walk():
+                        if part.is_multipart():
+                            continue
+                        if part.get_content_type().startswith('text/'):
+                            payload = part.get_payload(decode=True) or b''
+                            charset = part.get_content_charset() or 'utf-8'
+                            try:
+                                parts.append(payload.decode(charset, errors='ignore'))
+                            except Exception:
+                                parts.append(payload.decode('utf-8', errors='ignore'))
+                    body = "\n".join(parts)
+                else:
+                    payload = message.get_payload(decode=True) or b''
+                    charset = message.get_content_charset() or 'utf-8'
+                    try:
+                        body = payload.decode(charset, errors='ignore')
+                    except Exception:
+                        body = payload.decode('utf-8', errors='ignore')
+                headers = ''.join(f'{k}: {v}\n' for k, v in message.items())
+                msg_bytes = data
+                email_msg = message
 
             hash_val, cached = utils.cache_lookup(msg_bytes)
             if cached:
                 context.update(cached)
                 context['cached'] = True
             else:
-                email_msg = message_from_string(headers + "\n\n" + body)
-
                 ips = set(utils.extract_ips(headers))
                 domains = set(utils.extract_domains(body))
                 ip_results = {ip: utils.query_dnsbl(ip) for ip in ips}

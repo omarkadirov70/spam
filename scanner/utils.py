@@ -129,12 +129,32 @@ def extract_urls(text: str) -> list[str]:
 
 def suspicious_attachments(message: Message) -> list[str]:
     suspects = []
-    for att in getattr(message, 'attachments', []):
-        name = getattr(att, 'longFilename', None) or getattr(att, 'shortFilename', None) or ''
-        data = getattr(att, 'data', b'')
-        mime = magic_mime.from_buffer(data) if (magic_mime and data) else ''
-        if any(name.lower().endswith(ext) for ext in SUSPICIOUS_EXT) or ('executable' in mime):
-            suspects.append(name or '(unnamed)')
+    if hasattr(message, 'attachments'):
+        for att in message.attachments:
+            name = (
+                getattr(att, 'longFilename', None)
+                or getattr(att, 'shortFilename', None)
+                or ''
+            )
+            data = getattr(att, 'data', b'')
+            mime = magic_mime.from_buffer(data) if (magic_mime and data) else ''
+            if any(name.lower().endswith(ext) for ext in SUSPICIOUS_EXT) or (
+                'executable' in mime
+            ):
+                suspects.append(name or '(unnamed)')
+    else:
+        for part in message.walk():
+            if part.is_multipart():
+                continue
+            name = part.get_filename() or ''
+            if not name:
+                continue
+            data = part.get_payload(decode=True) or b''
+            mime = magic_mime.from_buffer(data) if (magic_mime and data) else ''
+            if any(name.lower().endswith(ext) for ext in SUSPICIOUS_EXT) or (
+                'executable' in mime
+            ):
+                suspects.append(name)
     return suspects
 
 
@@ -221,4 +241,3 @@ def scan_statistics() -> dict:
         'ml_ham': total - ml_spam,
         'ip_hits': ip_hits,
         'domain_hits': domain_hits,
-    }
