@@ -241,4 +241,3 @@ def scan_statistics() -> dict:
         'ml_ham': total - ml_spam,
         'ip_hits': ip_hits,
         'domain_hits': domain_hits,
-    }
