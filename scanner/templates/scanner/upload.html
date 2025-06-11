@@ -1,0 +1,174 @@
+{% extends 'scanner/base.html' %}
+{% block title %}Upload Email{% endblock %}
+{% block content %}
+<h1 class="mb-3">Check Email File</h1>
+<form id="scan-form" method="post" enctype="multipart/form-data" class="mb-4">
+    {% csrf_token %}
+    <div class="input-group">
+        {{ form.msg_file }}
+        <button class="btn btn-primary" type="submit">Scan</button>
+    </div>
+</form>
+<div id="results"></div>
+{% if cached %}
+<div class="alert alert-info">Result loaded from cache.</div>
+{% endif %}
+{% if results %}
+    {% for res in results %}
+        <h3 class="mt-4">{{ res.filename }}</h3>
+        {% with ip_results=res.ip_results domain_results=res.domain_results spf_result=res.spf_result dkim_result=res.dkim_result dmarc_result=res.dmarc_result keyword_hits=res.keyword_hits word_freqs=res.word_freqs links=res.links suspicious_attachments=res.suspicious_attachments ml_spam=res.ml_spam spam_score=res.spam_score overall_spam=res.overall_spam header_info=res.header_info %}
+{% if ip_results %}
+<div class="card mb-4">
+    <div class="card-header">IP Results</div>
+    <ul class="list-group list-group-flush">
+    {% for ip, lists in ip_results.items %}
+        <li class="list-group-item">{{ ip }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if domain_results %}
+<div class="card mb-4">
+    <div class="card-header">Domain Results</div>
+    <ul class="list-group list-group-flush">
+    {% for domain, lists in domain_results.items %}
+        <li class="list-group-item">{{ domain }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if spf_result is not None %}
+<div class="card mb-4">
+    <div class="card-header">SPF Result</div>
+    <div class="card-body">
+        <p class="mb-0">{{ spf_result }}</p>
+    </div>
+</div>
+{% endif %}
+{% if dkim_result is not none %}
+<div class="card mb-4">
+    <div class="card-header">DKIM Result</div>
+    <div class="card-body">
+        <p class="mb-0">{% if dkim_result %}Valid{% else %}Invalid{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if dmarc_result is not none %}
+<div class="card mb-4">
+    <div class="card-header">DMARC Result</div>
+    <div class="card-body">
+        <p class="mb-0">{% if dmarc_result %}Valid{% else %}Invalid{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if keyword_hits %}
+<div class="card mb-4">
+    <div class="card-header">Keyword Hits</div>
+    <ul class="list-group list-group-flush">
+    {% for k in keyword_hits %}
+        <li class="list-group-item">{{ k }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if word_freqs %}
+<div class="card mb-4">
+    <div class="card-header">Word Frequencies</div>
+    <ul class="list-group list-group-flush">
+    {% for w, c in word_freqs.items %}
+        <li class="list-group-item">{{ w }}: {{ c }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if links %}
+<div class="card mb-4">
+    <div class="card-header">Links</div>
+    <ul class="list-group list-group-flush">
+    {% for l in links %}
+        <li class="list-group-item">{{ l }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if suspicious_attachments %}
+<div class="card mb-4">
+    <div class="card-header">Suspicious Attachments</div>
+    <ul class="list-group list-group-flush">
+    {% for a in suspicious_attachments %}
+        <li class="list-group-item">{{ a }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if ml_spam is not none %}
+<div class="card mb-4">
+    <div class="card-header">ML Classification</div>
+    <div class="card-body">
+        <p class="mb-0">{% if ml_spam %}<span class="badge bg-danger">Spam</span>{% else %}<span class="badge bg-success">Ham</span>{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if spam_score is not none %}
+<div class="card mb-4">
+    <div class="card-header">Overall Score</div>
+    <div class="card-body">
+        <p class="mb-0">{{ spam_score }}
+        {% if overall_spam %}<span class="badge bg-danger ms-2">Spam</span>{% else %}<span class="badge bg-success ms-2">Ham</span>{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if header_info %}
+<div class="card mb-4">
+    <div class="card-header">Header Info</div>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item">From: {{ header_info.from }}</li>
+        <li class="list-group-item">Reply-To: {{ header_info.reply_to }}</li>
+        <li class="list-group-item">Subject: {{ header_info.subject }}</li>
+        <li class="list-group-item">Received:
+            <ul class="mb-0">
+            {% for r in header_info.received %}
+                <li>{{ r }}</li>
+            {% endfor %}
+            </ul>
+        </li>
+    </ul>
+</div>
+{% endif %}
+        {% endwith %}
+    {% endfor %}
+{% endif %}
+<script>
+const form = document.getElementById('scan-form');
+const resultsDiv = document.getElementById('results');
+form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    resultsDiv.innerHTML = '';
+    const files = form.querySelector('input[type=file]').files;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    for (const file of files) {
+        const container = document.createElement('div');
+        container.className = 'mb-4';
+        container.innerHTML = `<h4>${file.name}</h4><div class="progress mb-2"><div class="progress-bar" style="width:0%"></div></div><pre class="bg-light p-2"></pre>`;
+        resultsDiv.appendChild(container);
+        const bar = container.querySelector('.progress-bar');
+        const pre = container.querySelector('pre');
+        const data = new FormData();
+        data.append('msg_file', file);
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{% url "upload_ajax" %}');
+        xhr.setRequestHeader('X-CSRFToken', csrftoken);
+        xhr.upload.onprogress = e => { if(e.lengthComputable){ bar.style.width = (e.loaded/e.total*100)+"%"; } };
+        xhr.onload = () => {
+            bar.style.width = '100%';
+            if(xhr.status === 200){
+                pre.textContent = JSON.stringify(JSON.parse(xhr.responseText), null, 2);
+            } else {
+                pre.textContent = 'Error ' + xhr.status;
+            }
+        };
+        xhr.send(data);
+    }
+});
+</script>
+{% endblock %}
