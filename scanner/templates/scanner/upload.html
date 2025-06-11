@@ -104,6 +104,15 @@
     </div>
 </div>
 {% endif %}
+{% if spam_score is not none %}
+<div class="card mb-4">
+    <div class="card-header">Overall Score</div>
+    <div class="card-body">
+        <p class="mb-0">{{ spam_score }}
+        {% if overall_spam %}<span class="badge bg-danger ms-2">Spam</span>{% else %}<span class="badge bg-success ms-2">Ham</span>{% endif %}</p>
+    </div>
+</div>
+{% endif %}
 {% if header_info %}
 <div class="card mb-4">
     <div class="card-header">Header Info</div>

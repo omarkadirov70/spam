@@ -93,6 +93,9 @@ def upload(request: HttpRequest) -> HttpResponse:
                     'suspicious_attachments': suspicious_atts,
                     'ml_spam': ml_spam,
                 }
+                score = utils.compute_score(result)
+                result['spam_score'] = round(score, 2)
+                result['overall_spam'] = utils.is_spam_score(score)
                 utils.cache_store(hash_val, result)
                 utils.log_result(hash_val, result)
                 context.update(result)

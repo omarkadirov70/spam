@@ -9,6 +9,8 @@ try:
 except Exception:
     magic = None
 from bs4 import BeautifulSoup
+import tarfile
+import io
 
 DNSBL_LISTS = [
     'zen.spamhaus.org',
@@ -33,6 +35,21 @@ DEFAULT_KEYWORDS = [
 ]
 DEFAULT_WORD_FREQ_TERMS = ['free', 'win', 'click', 'offer']
 
+# URLs for a small portion of the SpamAssassin public corpus
+EMAIL_SPAM_URL = (
+    "https://spamassassin.apache.org/old/publiccorpus/20030228_spam.tar.bz2"
+)
+EMAIL_HAM_URL = (
+    "https://spamassassin.apache.org/old/publiccorpus/20030228_easy_ham.tar.bz2"
+)
+
+def preprocess_text(text: str) -> str:
+    """Extract text from HTML if needed."""
+    if "<html" in text.lower():
+        soup = BeautifulSoup(text, "html.parser")
+        text = soup.get_text(" ", strip=True)
+    return text
+
 _keywords: list[str] | None = None
 _keyword_regexes: list[re.Pattern] | None = None
 _freq_terms: list[str] | None = None
@@ -51,7 +68,7 @@ def _ensure_patterns() -> None:
     except Exception:
         data = SAMPLE_DATA
 
-    spam_texts = [text for text, label in data if label == 1]
+    spam_texts = [preprocess_text(text) for text, label in data if label == 1]
     tokens: list[str] = []
     bigrams: list[str] = []
     for text in spam_texts:
@@ -207,9 +224,8 @@ _vectorizer: CountVectorizer | None = None
 _classifier: MultinomialNB | None = None
 _training_data: list[tuple[str, int]] | None = None
 
-TRAINING_DATA_URL = (
-    "https://raw.githubusercontent.com/justmarkham/pycon-2016-tutorial/master/data/sms.tsv"
-)
+TRAINING_SPAM_URL = EMAIL_SPAM_URL
+TRAINING_HAM_URL = EMAIL_HAM_URL
 
 SAMPLE_DATA = [
     ("Win money now", 1),
@@ -220,20 +236,22 @@ SAMPLE_DATA = [
 
 
 def fetch_training_data() -> list[tuple[str, int]]:
-    """Download the SMS Spam Collection dataset and return pairs of text and label."""
+    """Download a subset of the SpamAssassin corpus."""
     data: list[tuple[str, int]] = []
     try:
-        with urlopen(TRAINING_DATA_URL) as resp:
-            wrapper = io.TextIOWrapper(resp, encoding="utf-8")
-            reader = csv.reader(wrapper, delimiter="\t")
-            for row in reader:
-                if len(row) != 2:
-                    continue
-                label, text = row
-                label = label.strip().lower()
-                if label not in {"ham", "spam"}:
-                    continue
-                data.append((text, 1 if label == "spam" else 0))
+        for url, label in ((TRAINING_SPAM_URL, 1), (TRAINING_HAM_URL, 0)):
+            with urlopen(url) as resp:
+                buf = io.BytesIO(resp.read())
+            with tarfile.open(fileobj=buf, mode="r:bz2") as tar:
+                for member in tar:
+                    if not member.isfile():
+                        continue
+                    f = tar.extractfile(member)
+                    if not f:
+                        continue
+                    raw = f.read().decode(errors="ignore")
+                    text = preprocess_text(raw)
+                    data.append((text, label))
     except Exception:
         data = SAMPLE_DATA
     return data
@@ -244,7 +262,7 @@ def train_default_model() -> None:
     global _vectorizer, _classifier, _training_data
     if _training_data is None:
         _training_data = fetch_training_data()
-    texts = [t for t, _ in _training_data]
+    texts = [preprocess_text(t) for t, _ in _training_data]
     labels = [l for _, l in _training_data]
     _vectorizer = CountVectorizer()
     X = _vectorizer.fit_transform(texts)
@@ -257,6 +275,7 @@ def predict_spam(text: str) -> bool:
     global _vectorizer, _classifier
     if _classifier is None:
         train_default_model()
+    text = preprocess_text(text)
     X = _vectorizer.transform([text])
     return bool(_classifier.predict(X)[0])
 
@@ -284,7 +303,46 @@ def cache_store(h: str, result: dict) -> None:
 
 
 def log_result(h: str, result: dict) -> None:
-    logger.info("hash=%s ml_spam=%s", h, result.get('ml_spam'))
+    logger.info(
+        "hash=%s ml_spam=%s score=%.2f keywords=%s ip_hits=%s domain_hits=%s",
+        h,
+        result.get("ml_spam"),
+        result.get("spam_score", 0.0),
+        ",".join(result.get("keyword_hits", [])),
+        ",".join(k for k, v in result.get("ip_results", {}).items() if v),
+        ",".join(k for k, v in result.get("domain_results", {}).items() if v),
+    )
+
+
+SPAM_THRESHOLD = 3.0
+
+
+def compute_score(result: dict) -> float:
+    """Return a heuristic spam score for a scan result."""
+    score = 0.0
+    if result.get("ml_spam"):
+        score += 2
+    if not result.get("dkim_result", True):
+        score += 1
+    spf = result.get("spf_result") or ""
+    if spf and "pass" not in spf.lower():
+        score += 1
+    if any(result.get("ip_results", {}).get(ip) for ip in result.get("ip_results", {})):
+        score += 1
+    if any(
+        result.get("domain_results", {}).get(d) for d in result.get("domain_results", {})
+    ):
+        score += 1
+    score += 0.5 * len(result.get("keyword_hits", []))
+    score += 0.5 * len(result.get("suspicious_attachments", []))
+    subj = result.get("header_info", {}).get("subject", "").lower()
+    if subj.startswith("[spam"):
+        score += 1
+    return score
+
+
+def is_spam_score(score: float) -> bool:
+    return score >= SPAM_THRESHOLD
 
 
 def scan_statistics() -> dict:
@@ -292,6 +350,7 @@ def scan_statistics() -> dict:
     results = cache.all_results()
     total = len(results)
     ml_spam = sum(1 for r in results if r.get('ml_spam'))
+    overall_spam = sum(1 for r in results if r.get('overall_spam'))
     ip_hits = sum(
         1
         for r in results
@@ -308,6 +367,8 @@ def scan_statistics() -> dict:
         'total': total,
         'ml_spam': ml_spam,
         'ml_ham': total - ml_spam,
+        'overall_spam': overall_spam,
+        'overall_ham': total - overall_spam,
         'ip_hits': ip_hits,
         'domain_hits': domain_hits,
     }

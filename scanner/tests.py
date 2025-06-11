@@ -67,6 +67,20 @@ class UtilsTests(TestCase):
             self.assertTrue(utils.predict_spam('Cheap viagra here'))
             self.assertFalse(utils.predict_spam('Lunch tomorrow'))
 
+    def test_score(self):
+        result = {
+            'ip_results': {'1.2.3.4': ['bl']},
+            'domain_results': {'bad.com': ['dbl']},
+            'spf_result': 'fail',
+            'dkim_result': False,
+            'keyword_hits': ['free money'],
+            'suspicious_attachments': ['run.exe'],
+            'ml_spam': True,
+            'header_info': {'subject': '[SPAM] offer'},
+        }
+        score = utils.compute_score(result)
+        self.assertTrue(utils.is_spam_score(score))
+
 
 class CacheTests(TestCase):
     def test_cache_roundtrip(self):
