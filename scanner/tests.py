@@ -24,6 +24,13 @@ class UploadViewTests(TestCase):
         response = client.post(reverse('upload'), {'msg_file': file})
         self.assertEqual(response.status_code, 200)
 
+    def test_upload_multiple(self):
+        client = Client()
+        f1 = SimpleUploadedFile('one.eml', b'From: a@x\n\n1', content_type='application/octet-stream')
+        f2 = SimpleUploadedFile('two.eml', b'From: b@x\n\n2', content_type='application/octet-stream')
+        response = client.post(reverse('upload'), {'msg_file': [f1, f2]})
+        self.assertEqual(response.status_code, 200)
+
 
 class UtilsTests(TestCase):
     def test_parse_headers(self):

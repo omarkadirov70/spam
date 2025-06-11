@@ -2,16 +2,21 @@
 {% block title %}Upload Email{% endblock %}
 {% block content %}
 <h1 class="mb-3">Check Email File</h1>
-<form method="post" enctype="multipart/form-data" class="mb-4">
+<form id="scan-form" method="post" enctype="multipart/form-data" class="mb-4">
     {% csrf_token %}
     <div class="input-group">
         {{ form.msg_file }}
         <button class="btn btn-primary" type="submit">Scan</button>
     </div>
 </form>
+<div id="results"></div>
 {% if cached %}
 <div class="alert alert-info">Result loaded from cache.</div>
 {% endif %}
+{% if results %}
+    {% for res in results %}
+        <h3 class="mt-4">{{ res.filename }}</h3>
+        {% with ip_results=res.ip_results domain_results=res.domain_results spf_result=res.spf_result dkim_result=res.dkim_result dmarc_result=res.dmarc_result keyword_hits=res.keyword_hits word_freqs=res.word_freqs links=res.links suspicious_attachments=res.suspicious_attachments ml_spam=res.ml_spam spam_score=res.spam_score overall_spam=res.overall_spam header_info=res.header_info %}
 {% if ip_results %}
 <div class="card mb-4">
     <div class="card-header">IP Results</div>
@@ -130,4 +135,40 @@
     </ul>
 </div>
 {% endif %}
+        {% endwith %}
+    {% endfor %}
+{% endif %}
+<script>
+const form = document.getElementById('scan-form');
+const resultsDiv = document.getElementById('results');
+form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    resultsDiv.innerHTML = '';
+    const files = form.querySelector('input[type=file]').files;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    for (const file of files) {
+        const container = document.createElement('div');
+        container.className = 'mb-4';
+        container.innerHTML = `<h4>${file.name}</h4><div class="progress mb-2"><div class="progress-bar" style="width:0%"></div></div><pre class="bg-light p-2"></pre>`;
+        resultsDiv.appendChild(container);
+        const bar = container.querySelector('.progress-bar');
+        const pre = container.querySelector('pre');
+        const data = new FormData();
+        data.append('msg_file', file);
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{% url "upload_ajax" %}');
+        xhr.setRequestHeader('X-CSRFToken', csrftoken);
+        xhr.upload.onprogress = e => { if(e.lengthComputable){ bar.style.width = (e.loaded/e.total*100)+"%"; } };
+        xhr.onload = () => {
+            bar.style.width = '100%';
+            if(xhr.status === 200){
+                pre.textContent = JSON.stringify(JSON.parse(xhr.responseText), null, 2);
+            } else {
+                pre.textContent = 'Error ' + xhr.status;
+            }
+        };
+        xhr.send(data);
+    }
+});
+</script>
 {% endblock %}
