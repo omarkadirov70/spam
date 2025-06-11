@@ -1,0 +1,44 @@
+{% extends 'scanner/base.html' %}
+{% block title %}Statistics{% endblock %}
+{% block content %}
+<h1 class="mb-4">Scan Statistics</h1>
+{% if total == 0 %}
+<p>No scans recorded.</p>
+{% else %}
+<div class="card mb-4 p-4">
+  <div class="row">
+    <div class="col-md-6">
+      <canvas id="spamPie"></canvas>
+    </div>
+    <div class="col-md-6">
+      <canvas id="hitBar"></canvas>
+    </div>
+  </div>
+</div>
+<script>
+const spamCtx = document.getElementById('spamPie');
+new Chart(spamCtx, {
+    type: 'pie',
+    data: {
+        labels: ['Ham', 'Spam'],
+        datasets: [{ data: [{{ ml_ham }}, {{ ml_spam }}], backgroundColor: ['#5cb85c', '#d9534f'] }]
+    }
+});
+const hitCtx = document.getElementById('hitBar');
+new Chart(hitCtx, {
+    type: 'bar',
+    data: {
+        labels: ['IP Hits', 'Domain Hits'],
+        datasets: [{ data: [{{ ip_hits }}, {{ domain_hits }}], backgroundColor: '#0275d8' }]
+    },
+    options: {scales: {y: {beginAtZero: true, stepSize: 1}}}
+});
+</script>
+<ul class="mt-4 list-group">
+  <li class="list-group-item">Total scans: {{ total }}</li>
+  <li class="list-group-item">Spam predicted by ML: {{ ml_spam }}</li>
+  <li class="list-group-item">Messages with DNSBL hits: {{ ip_hits }}</li>
+  <li class="list-group-item">Messages with URIBL hits: {{ domain_hits }}</li>
+</ul>
+{% endif %}
+{% endblock %}
