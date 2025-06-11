@@ -1,0 +1,240 @@
+{% extends 'scanner/base.html' %}
+{% block title %}Upload Email{% endblock %}
+{% block content %}
+<h1 class="mb-3">Check Email File</h1>
+<form id="scan-form" method="post" enctype="multipart/form-data" class="mb-4">
+    {% csrf_token %}
+    <div class="input-group">
+        {{ form.msg_file }}
+        <button class="btn btn-primary" type="submit">Scan</button>
+    </div>
+</form>
+<div id="results"></div>
+{% if cached %}
+<div class="alert alert-info">Result loaded from cache.</div>
+{% endif %}
+{% if results %}
+    {% for res in results %}
+        <h3 class="mt-4">{{ res.filename }}</h3>
+        {% with ip_results=res.ip_results domain_results=res.domain_results spf_result=res.spf_result dkim_result=res.dkim_result dmarc_result=res.dmarc_result keyword_hits=res.keyword_hits word_freqs=res.word_freqs links=res.links suspicious_attachments=res.suspicious_attachments ml_spam=res.ml_spam spam_score=res.spam_score overall_spam=res.overall_spam header_info=res.header_info %}
+{% if ip_results %}
+<div class="card mb-4">
+    <div class="card-header">IP Results</div>
+    <ul class="list-group list-group-flush">
+    {% for ip, lists in ip_results.items %}
+        <li class="list-group-item">{{ ip }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if domain_results %}
+<div class="card mb-4">
+    <div class="card-header">Domain Results</div>
+    <ul class="list-group list-group-flush">
+    {% for domain, lists in domain_results.items %}
+        <li class="list-group-item">{{ domain }} - {% if lists %}Listed on {{ lists|join:', ' }}{% else %}Clean{% endif %}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if spf_result is not None %}
+<div class="card mb-4">
+    <div class="card-header">SPF Result</div>
+    <div class="card-body">
+        <p class="mb-0">{{ spf_result }}</p>
+    </div>
+</div>
+{% endif %}
+{% if dkim_result is not none %}
+<div class="card mb-4">
+    <div class="card-header">DKIM Result</div>
+    <div class="card-body">
+        <p class="mb-0">{% if dkim_result %}Valid{% else %}Invalid{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if dmarc_result is not none %}
+<div class="card mb-4">
+    <div class="card-header">DMARC Result</div>
+    <div class="card-body">
+        <p class="mb-0">{% if dmarc_result %}Valid{% else %}Invalid{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if keyword_hits %}
+<div class="card mb-4">
+    <div class="card-header">Keyword Hits</div>
+    <ul class="list-group list-group-flush">
+    {% for k in keyword_hits %}
+        <li class="list-group-item">{{ k }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if word_freqs %}
+<div class="card mb-4">
+    <div class="card-header">Word Frequencies</div>
+    <ul class="list-group list-group-flush">
+    {% for w, c in word_freqs.items %}
+        <li class="list-group-item">{{ w }}: {{ c }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if links %}
+<div class="card mb-4">
+    <div class="card-header">Links</div>
+    <ul class="list-group list-group-flush">
+    {% for l in links %}
+        <li class="list-group-item">{{ l }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if suspicious_attachments %}
+<div class="card mb-4">
+    <div class="card-header">Suspicious Attachments</div>
+    <ul class="list-group list-group-flush">
+    {% for a in suspicious_attachments %}
+        <li class="list-group-item">{{ a }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if ml_spam is not none %}
+<div class="card mb-4">
+    <div class="card-header">ML Classification</div>
+    <div class="card-body">
+        <p class="mb-0">{% if ml_spam %}<span class="badge bg-danger">Spam</span>{% else %}<span class="badge bg-success">Ham</span>{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if spam_score is not none %}
+<div class="card mb-4">
+    <div class="card-header">Overall Score</div>
+    <div class="card-body">
+        <p class="mb-0">{{ spam_score }}
+        {% if overall_spam %}<span class="badge bg-danger ms-2">Spam</span>{% else %}<span class="badge bg-success ms-2">Ham</span>{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% if header_info %}
+<div class="card mb-4">
+    <div class="card-header">Header Info</div>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item">From: {{ header_info.from }}</li>
+        <li class="list-group-item">Reply-To: {{ header_info.reply_to }}</li>
+        <li class="list-group-item">Subject: {{ header_info.subject }}</li>
+        <li class="list-group-item">Received:
+            <ul class="mb-0">
+            {% for r in header_info.received %}
+                <li>{{ r }}</li>
+            {% endfor %}
+            </ul>
+        </li>
+    </ul>
+</div>
+{% endif %}
+        {% endwith %}
+    {% endfor %}
+{% endif %}
+<script>
+const form = document.getElementById('scan-form');
+const resultsDiv = document.getElementById('results');
+function renderResult(data){
+    let html = '';
+    if(data.cached){
+        html += '<div class="alert alert-info">Result loaded from cache.</div>';
+    }
+    if(data.ip_results && Object.keys(data.ip_results).length){
+        html += '<div class="card mb-2"><div class="card-header">IP Results</div><ul class="list-group list-group-flush">';
+        for(const ip in data.ip_results){
+            const lists = data.ip_results[ip];
+            html += `<li class="list-group-item">${ip} - ${lists.length ? 'Listed on '+lists.join(', ') : 'Clean'}</li>`;
+        }
+        html += '</ul></div>';
+    }
+    if(data.domain_results && Object.keys(data.domain_results).length){
+        html += '<div class="card mb-2"><div class="card-header">Domain Results</div><ul class="list-group list-group-flush">';
+        for(const d in data.domain_results){
+            const lists = data.domain_results[d];
+            html += `<li class="list-group-item">${d} - ${lists.length ? 'Listed on '+lists.join(', ') : 'Clean'}</li>`;
+        }
+        html += '</ul></div>';
+    }
+    if(data.spf_result !== undefined && data.spf_result !== null){
+        html += `<div class="card mb-2"><div class="card-header">SPF Result</div><div class="card-body"><p class="mb-0">${data.spf_result}</p></div></div>`;
+    }
+    if(data.dkim_result !== undefined && data.dkim_result !== null){
+        html += `<div class="card mb-2"><div class="card-header">DKIM Result</div><div class="card-body"><p class="mb-0">${data.dkim_result ? 'Valid' : 'Invalid'}</p></div></div>`;
+    }
+    if(data.dmarc_result !== undefined && data.dmarc_result !== null){
+        html += `<div class="card mb-2"><div class="card-header">DMARC Result</div><div class="card-body"><p class="mb-0">${data.dmarc_result ? 'Valid' : 'Invalid'}</p></div></div>`;
+    }
+    if(data.keyword_hits && data.keyword_hits.length){
+        html += '<div class="card mb-2"><div class="card-header">Keyword Hits</div><ul class="list-group list-group-flush">';
+        for(const k of data.keyword_hits){ html += `<li class="list-group-item">${k}</li>`; }
+        html += '</ul></div>';
+    }
+    if(data.links && data.links.length){
+        html += '<div class="card mb-2"><div class="card-header">Links</div><ul class="list-group list-group-flush">';
+        for(const l of data.links){ html += `<li class="list-group-item">${l}</li>`; }
+        html += '</ul></div>';
+    }
+    if(data.suspicious_attachments && data.suspicious_attachments.length){
+        html += '<div class="card mb-2"><div class="card-header">Suspicious Attachments</div><ul class="list-group list-group-flush">';
+        for(const a of data.suspicious_attachments){ html += `<li class="list-group-item">${a}</li>`; }
+        html += '</ul></div>';
+    }
+    if(data.ml_spam !== undefined && data.ml_spam !== null){
+        html += `<div class="card mb-2"><div class="card-header">ML Classification</div><div class="card-body"><p class="mb-0">${data.ml_spam ? '<span class="badge bg-danger">Spam</span>' : '<span class="badge bg-success">Ham</span>'}</p></div></div>`;
+    }
+    if(data.spam_score !== undefined && data.spam_score !== null){
+        html += `<div class="card mb-2"><div class="card-header">Overall Score</div><div class="card-body"><p class="mb-0">${data.spam_score} ${data.overall_spam ? '<span class="badge bg-danger ms-2">Spam</span>' : '<span class="badge bg-success ms-2">Ham</span>'}</p></div></div>`;
+    }
+    if(data.header_info){
+        html += '<div class="card mb-2"><div class="card-header">Header Info</div><ul class="list-group list-group-flush">';
+        if(data.header_info.from){ html += `<li class="list-group-item">From: ${data.header_info.from}</li>`; }
+        if(data.header_info.reply_to){ html += `<li class="list-group-item">Reply-To: ${data.header_info.reply_to}</li>`; }
+        if(data.header_info.subject){ html += `<li class="list-group-item">Subject: ${data.header_info.subject}</li>`; }
+        if(data.header_info.received && data.header_info.received.length){
+            html += '<li class="list-group-item">Received:<ul class="mb-0">';
+            for(const r of data.header_info.received){ html += `<li>${r}</li>`; }
+            html += '</ul></li>';
+        }
+        html += '</ul></div>';
+    }
+    return html;
+}
+form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    resultsDiv.innerHTML = '';
+    const files = form.querySelector('input[type=file]').files;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    for (const file of files) {
+        const container = document.createElement('div');
+        container.className = 'mb-4';
+        container.innerHTML = `<h4>${file.name}</h4><div class="progress mb-2"><div class="progress-bar" style="width:0%"></div></div><div class="result-area"></div>`;
+        resultsDiv.appendChild(container);
+        const bar = container.querySelector('.progress-bar');
+        const area = container.querySelector('.result-area');
+        const data = new FormData();
+        data.append('msg_file', file);
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{% url "upload_ajax" %}');
+        xhr.setRequestHeader('X-CSRFToken', csrftoken);
+        xhr.upload.onprogress = e => { if(e.lengthComputable){ bar.style.width = (e.loaded/e.total*100)+"%"; } };
+        xhr.onload = () => {
+            bar.style.width = '100%';
+            if(xhr.status === 200){
+                const data = JSON.parse(xhr.responseText);
+                area.innerHTML = renderResult(data);
+            } else {
+                area.innerHTML = '<div class="text-danger">Error ' + xhr.status + '</div>';
+            }
+        };
+        xhr.send(data);
+    }
+});
+</script>
+{% endblock %}
