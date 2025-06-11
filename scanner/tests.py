@@ -41,12 +41,19 @@ class UtilsTests(TestCase):
         self.assertEqual(info['received'], ['by mail.example.com'])
 
     def test_content_filters(self):
-        text = 'Get FREE money now! Viagra available.'
-        keywords = utils.find_keywords(text)
-        self.assertIn('free money', keywords)
-        self.assertIn('viagra', keywords)
-        freqs = utils.word_frequencies(text, ['free'])
-        self.assertEqual(freqs['free'], 1)
+        with patch('scanner.utils.fetch_training_data') as fake:
+            fake.return_value = [
+                ('buy cheap viagra now', 1),
+                ('free money waiting', 1),
+                ('hello there', 0),
+            ]
+            utils.reset_patterns()
+            text = 'Get FREE money now! Viagra available.'
+            keywords = utils.find_keywords(text)
+            self.assertIn('free money', keywords)
+            self.assertIn('viagra', keywords)
+            freqs = utils.word_frequencies(text, ['free'])
+            self.assertEqual(freqs['free'], 1)
 
     def test_ml_prediction(self):
         with patch('scanner.utils.fetch_training_data') as fake:

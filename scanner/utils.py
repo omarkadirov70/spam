@@ -1,4 +1,5 @@
 import re
+from collections import Counter
 import dns.resolver
 from email.message import Message
 import spf
@@ -23,18 +24,53 @@ ip_regex = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
 url_regex = re.compile(r'https?://([^/\s]+)')
 
 # Spam content patterns
-KEYWORDS = [
+# Default terms used if fetching from the training dataset fails
+DEFAULT_KEYWORDS = [
     'free money',
     'viagra',
     'lottery',
     'prince',
 ]
-KEYWORD_REGEXES = [re.compile(k, re.IGNORECASE) for k in KEYWORDS]
+DEFAULT_WORD_FREQ_TERMS = ['free', 'win', 'click', 'offer']
 
-WORD_FREQ_TERMS = ['free', 'win', 'click', 'offer']
+_keywords: list[str] | None = None
+_keyword_regexes: list[re.Pattern] | None = None
+_freq_terms: list[str] | None = None
 
 SUSPICIOUS_EXT = {'.exe', '.bat', '.cmd', '.scr', '.js', '.vbs', '.jar', '.zip', '.rar'}
 magic_mime = magic.Magic(mime=True) if magic else None
+
+
+def _ensure_patterns() -> None:
+    """Load spam keyword and frequency terms from training data."""
+    global _keywords, _keyword_regexes, _freq_terms
+    if _keywords is not None and _freq_terms is not None:
+        return
+    try:
+        data = fetch_training_data()
+    except Exception:
+        data = SAMPLE_DATA
+
+    spam_texts = [text for text, label in data if label == 1]
+    tokens: list[str] = []
+    bigrams: list[str] = []
+    for text in spam_texts:
+        words = re.findall(r"\b\w+\b", text.lower())
+        tokens.extend(words)
+        bigrams.extend([f"{w1} {w2}" for w1, w2 in zip(words, words[1:])])
+    counts = Counter(tokens + bigrams)
+    common = [word for word, _ in counts.most_common(50)]
+    _keywords = common[:20] or DEFAULT_KEYWORDS
+    _freq_terms = common[:10] or DEFAULT_WORD_FREQ_TERMS
+    _keyword_regexes = [re.compile(k, re.IGNORECASE) for k in _keywords]
+
+
+def reset_patterns() -> None:
+    """Reset loaded spam patterns (for tests)."""
+    global _keywords, _keyword_regexes, _freq_terms
+    _keywords = None
+    _keyword_regexes = None
+    _freq_terms = None
 
 def extract_ips(text):
     return ip_regex.findall(text)
@@ -110,15 +146,17 @@ def check_dmarc(domain: str) -> bool:
 
 def find_keywords(text: str) -> list[str]:
     """Return spam keywords found in text."""
+    _ensure_patterns()
     hits = []
-    for regex in KEYWORD_REGEXES:
+    for regex in _keyword_regexes or []:
         if regex.search(text):
             hits.append(regex.pattern)
     return hits
 
 
 def word_frequencies(text: str, words: list[str] | None = None) -> dict:
-    words = words or WORD_FREQ_TERMS
+    _ensure_patterns()
+    words = words or _freq_terms
     tokens = re.findall(r'\b\w+\b', text.lower())
     return {w.lower(): tokens.count(w.lower()) for w in words}
 
